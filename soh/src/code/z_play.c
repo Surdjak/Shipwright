@@ -1,4 +1,7 @@
 #include "global.h"
+#ifdef SOH_HARNESS
+#include "Harness.h"
+#endif
 #include "vt.h"
 
 #include <string.h>
@@ -518,7 +521,12 @@ void Play_Init(GameState* thisx) {
     gTrnsnUnkState = 0;
     play->transitionMode = TRANS_MODE_OFF;
     FrameAdvance_Init(&play->frameAdvCtx);
+#ifdef SOH_HARNESS
+    // The differential testing harness needs a fixed seed instead of the clock.
+    Rand_Seed(Harness_IsActive() ? Harness_Seed() : (u32)osGetTime());
+#else
     Rand_Seed((u32)osGetTime());
+#endif
     Matrix_Init(&play->state);
     play->state.main = Play_Main;
     play->state.destroy = Play_Destroy;

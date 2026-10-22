@@ -1,4 +1,7 @@
 #include "global.h"
+#ifdef SOH_HARNESS
+#include "HarnessGame.h"
+#endif
 #include "vt.h"
 #include <string.h>
 
@@ -317,6 +320,10 @@ void PadMgr_HandleRetraceMsg(PadMgr* padMgr) {
     }
     osRecvMesg(queue, NULL, OS_MESG_BLOCK);
     osContGetReadData(padMgr->pads);
+#ifdef SOH_HARNESS
+    // Record or replace controller input for the differential testing harness.
+    HarnessGame_OnPadRead(padMgr->pads);
+#endif
 
     Mouse_UpdateAll();
 

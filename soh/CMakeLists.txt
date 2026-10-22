@@ -228,6 +228,15 @@ set(ALL_FILES
 ################################################################################
 add_executable(${PROJECT_NAME} ${ALL_FILES})
 
+# Differential testing harness from the OoT/MM merge project. Point HARNESS_DIR at its harness/
+# directory to build it in; it does nothing unless its environment variables are set.
+set(HARNESS_DIR "" CACHE PATH "Path to the differential testing harness (empty to leave it out)")
+if (HARNESS_DIR)
+    target_sources(${PROJECT_NAME} PRIVATE ${HARNESS_DIR}/core/Harness.cpp ${HARNESS_DIR}/soh/HarnessSoh.cpp)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${HARNESS_DIR}/core)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE SOH_HARNESS)
+endif()
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
 endif()

@@ -2250,6 +2250,7 @@ void SystemArena_Cleanup(void);
 u8 SystemArena_IsInitalized(void);
 u32 Rand_Next(void);
 void Rand_Seed(u32 seed);
+u32 Rand_GetState(void);
 f32 Rand_ZeroOne(void);
 f32 Rand_Centered(void);
 void Rand_Seed_Variable(u32* rndNum, u32 seed);

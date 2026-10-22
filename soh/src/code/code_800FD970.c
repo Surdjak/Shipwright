@@ -20,6 +20,11 @@ void Rand_Seed(u32 seed) {
     sRandInt = seed;
 }
 
+// Exposes the PRNG state to the differential testing harness.
+u32 Rand_GetState(void) {
+    return sRandInt;
+}
+
 /**
  * Returns a pseudo-random floating-point number between 0.0f and 1.0f, by generating
  * the next integer and masking it to an IEEE-754 compliant floating-point number
