@@ -1,7 +1,8 @@
 # Archipelago-SoH for Android
 
 This branch combines:
-- the **Archipelago client for Ship of Harkinian** (aMannus/Shipwright, `archipelago` branch, SoH 9.2.3), and
+- the **Archipelago client for Ship of Harkinian 1.4.2** (commit `30fe440`, the source of the official
+  Archipelago-SoH 1.4.2 release; SoH 9.2.3), and
 - the **Android port** by Waterdish (Waterdish/Shipwright-Android, SoH 9.0.2).
 
 It installs as a separate app (**SoH Archipelago**, `com.dishii.soh.ap`) with its own data folder
