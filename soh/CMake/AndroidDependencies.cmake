@@ -49,15 +49,26 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(opus)
 
-set(OP_DISABLE_HTTP ON CACHE BOOL "" FORCE)
-set(OP_DISABLE_DOCS ON CACHE BOOL "" FORCE)
-set(OP_DISABLE_EXAMPLES ON CACHE BOOL "" FORCE)
+# opusfile v0.12 only ships an autotools build, so build its four core sources here
+# (no HTTP support, so no OpenSSL dependency).
 FetchContent_Declare(
     opusfile
     GIT_REPOSITORY https://github.com/xiph/opusfile.git
     GIT_TAG v0.12
 )
-FetchContent_MakeAvailable(opusfile)
+FetchContent_GetProperties(opusfile)
+if(NOT opusfile_POPULATED)
+    FetchContent_Populate(opusfile)
+endif()
+add_library(opusfile STATIC
+    ${opusfile_SOURCE_DIR}/src/info.c
+    ${opusfile_SOURCE_DIR}/src/internal.c
+    ${opusfile_SOURCE_DIR}/src/opusfile.c
+    ${opusfile_SOURCE_DIR}/src/stream.c
+)
+target_include_directories(opusfile PUBLIC ${opusfile_SOURCE_DIR}/include PRIVATE ${opusfile_SOURCE_DIR}/src)
+target_compile_definitions(opusfile PRIVATE OP_DISABLE_HTTP)
+target_link_libraries(opusfile PUBLIC opus ogg)
 
 # SoH includes <opus/opus.h>, but the opus source tree keeps its headers directly in include/.
 set(SOH_OPUS_COMPAT_DIR ${CMAKE_BINARY_DIR}/opus-compat)
