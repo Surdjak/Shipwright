@@ -151,7 +151,7 @@ if (BUILD_REMOTE_CONTROL)
         CONFIGURE_COMMAND
             ${SOH_OPENSSL_ENV} ${SOH_PERL} ./Configure ${SOH_OPENSSL_TARGET}
                 -D__ANDROID_API__=${SOH_ANDROID_API}
-                no-shared no-tests no-docs no-apps no-engine no-dso
+                no-shared no-tests no-engine no-dso
                 --prefix=${SOH_OPENSSL_PREFIX} --libdir=lib
         BUILD_COMMAND ${SOH_OPENSSL_ENV} ${SOH_MAKE} -j4 build_libs
         INSTALL_COMMAND ${SOH_OPENSSL_ENV} ${SOH_MAKE} install_dev
