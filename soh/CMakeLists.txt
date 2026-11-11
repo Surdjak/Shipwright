@@ -224,7 +224,12 @@ set(ALL_FILES
 ################################################################################
 # Target
 ################################################################################
-add_executable(${PROJECT_NAME} ${ALL_FILES})
+if (CMAKE_SYSTEM_NAME STREQUAL "Android")
+    # The Android app (SDLActivity.getLibraries) loads the game as libsoh.so
+    add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
+else()
+    add_executable(${PROJECT_NAME} ${ALL_FILES})
+endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
@@ -348,10 +353,16 @@ FetchContent_MakeAvailable(dr_libs)
 ################################################################################
 # Compile definitions
 ################################################################################
+if (CMAKE_SYSTEM_NAME STREQUAL "Android")
+    # SDL2 comes from libultraship's FetchContent; everything else from AndroidDependencies.cmake
+    include(${CMAKE_CURRENT_SOURCE_DIR}/CMake/AndroidDependencies.cmake)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${SOH_ANDROID_INCLUDE_DIRS})
+else()
 find_package(SDL2)
+endif()
 set(SDL2-INCLUDE ${SDL2_INCLUDE_DIRS})
 
-if (BUILD_REMOTE_CONTROL)
+if (BUILD_REMOTE_CONTROL AND NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
     find_package(SDL2_net)
 
     if(NOT SDL2_net_FOUND)
@@ -624,6 +635,30 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
         target_link_options(${PROJECT_NAME} PRIVATE
             -pthread
         )
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "Android")
+        target_compile_options(${PROJECT_NAME} PRIVATE
+            -Wno-error
+            -Wformat-security
+            -Wno-return-type
+            -Wno-unused-parameter
+            -Wno-unused-function
+            -Wno-unused-variable
+            -Wno-missing-field-initializers
+            -Wno-parentheses
+            -Wno-narrowing
+            -Wno-missing-braces
+            -Wno-multichar
+            $<$<COMPILE_LANGUAGE:C>:
+                -Werror-implicit-function-declaration
+                -Wno-incompatible-pointer-types
+                -Wno-int-conversion
+                -Wno-implicit-int
+            >
+            $<$<COMPILE_LANGUAGE:CXX>:
+                -Wno-c++11-narrowing
+                -Wno-deprecated-enum-enum-conversion
+            >
+        )
     elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
         target_compile_options(${PROJECT_NAME} PRIVATE
             -O2
@@ -689,7 +724,7 @@ if (CMAKE_GENERATOR MATCHES "Visual Studio")
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/soh/assets/xml ${CMAKE_BINARY_DIR}/soh/assets/xml
     )
 endif()
-if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS|Android")
     add_custom_command(
         TARGET ${PROJECT_NAME}
         POST_BUILD
@@ -768,6 +803,20 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
         SDL2::SDL2
         -lglad
         Threads::Threads
+    )
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
+    set(ADDITIONAL_LIBRARY_DEPENDENCIES
+        "libultraship;"
+        "ZAPDLib;"
+        SDL2::SDL2
+        ${SOH_ANDROID_AUDIO_LIBS}
+        ${SOH_ANDROID_NETWORK_LIBS}
+        Threads::Threads
+        android
+        log
+        z
     )
 elseif(CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
     find_package(SDL2 REQUIRED)
