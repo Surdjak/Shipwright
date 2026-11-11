@@ -1,4 +1,12 @@
 def buildAsLibrary = project.hasProperty('BUILD_AS_LIBRARY');
+
+// CMake arguments for the native build. Setting SOH_CCACHE=1 in the environment
+// (as the CI workflow does) routes compiles through ccache.
+def nativeCmakeArgs = ["-DSDL_SHARED=ON", "-DANDROID_STL=c++_static", "-DHAVE_LD_VERSION_SCRIPT=OFF",
+                       "-DUSE_OPENGLES=ON", "-DBUILD_REMOTE_CONTROL=1"]
+if (System.getenv("SOH_CCACHE") == "1") {
+    nativeCmakeArgs += ["-DCMAKE_C_COMPILER_LAUNCHER=ccache", "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"]
+}
 def buildAsApplication = !buildAsLibrary
 if (buildAsApplication) {
     apply plugin: 'com.android.application'
@@ -27,7 +35,7 @@ android {
         debug {
             externalNativeBuild {
                 cmake {
-                    arguments "-DSDL_SHARED=ON", "-DANDROID_STL=c++_static", "-DHAVE_LD_VERSION_SCRIPT=OFF",'-DUSE_OPENGLES=ON', "-DBUILD_REMOTE_CONTROL=1"
+                    arguments(*nativeCmakeArgs)
                     abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
                 }
             }
@@ -40,7 +48,7 @@ android {
             signingConfig signingConfigs.debug
             externalNativeBuild {
                 cmake {
-                    arguments "-DSDL_SHARED=ON", "-DANDROID_STL=c++_static", "-DHAVE_LD_VERSION_SCRIPT=OFF",'-DUSE_OPENGLES=ON', "-DBUILD_REMOTE_CONTROL=1"
+                    arguments(*nativeCmakeArgs)
                     abiFilters 'arm64-v8a'
                 }
             }

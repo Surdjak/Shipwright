@@ -60,12 +60,34 @@ jobs:
       run: |
         yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
         "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;26.0.10792818" "cmake;3.31.5" > /dev/null
+    - name: Install ccache
+      run: sudo apt-get install -y ccache
+    - name: Restore compiler cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/.cache/android-ccache
+        key: android-ccache-${{ github.sha }}
+        restore-keys: android-ccache-
     - name: Build APK (release, arm64-v8a, debug-signed)
       working-directory: Android
+      env:
+        SOH_CCACHE: "1"
+        CCACHE_BASEDIR: ${{ github.workspace }}
+        CCACHE_COMPILERCHECK: content
+        CCACHE_MAXSIZE: 3G
       run: |
+        mkdir -p ~/.cache/android-ccache && export CCACHE_DIR=~/.cache/android-ccache
+        ccache -z || true
         chmod +x gradlew
         set -o pipefail
         ./gradlew --no-daemon assembleRelease 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+        ccache -s || true
+    - name: Save compiler cache (also after failures, so retries are fast)
+      if: always()
+      uses: actions/cache/save@v4
+      with:
+        path: ~/.cache/android-ccache
+        key: android-ccache-${{ github.sha }}
     - name: Collect all native compile errors
       if: failure()
       working-directory: Android
