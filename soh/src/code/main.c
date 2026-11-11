@@ -36,6 +36,22 @@ AudioMgr gAudioMgr;
 OSMesgQueue sSiIntMsgQ;
 OSMesg sSiIntMsgBuf[1];
 
+#ifdef __ANDROID__
+#include <jni.h>
+#include <SDL.h>
+void wait_for_java_setup() {
+    JNIEnv* env = SDL_AndroidGetJNIEnv();
+    jobject activity = SDL_AndroidGetActivity();
+
+    jclass activityClass = (*env)->GetObjectClass(env, activity);
+    jclass mainActivityClass = (*env)->FindClass(env, "com/dishii/soh/MainActivity");
+
+    jmethodID waitMethod = (*env)->GetStaticMethodID(env, mainActivityClass, "waitForSetupFromNative", "()V");
+
+    (*env)->CallStaticVoidMethod(env, mainActivityClass, waitMethod);
+}
+#endif
+
 void Main_LogSystemHeap(void) {
     osSyncPrintf(VT_FGCOL(GREEN));
     // "System heap size% 08x (% dKB) Start address% 08x"
@@ -56,6 +72,10 @@ int SDL_main(int argc, char* argv[]) {
     // Allow non-ascii characters for Windows
     setlocale(LC_ALL, ".UTF8");
 
+#elif defined(__ANDROID__)
+int SDL_main(int argc, char** argv)
+{
+    wait_for_java_setup();  // Pause here until Java is ready
 #else //_WIN32
 int main(int argc, char* argv[]) {
 #endif

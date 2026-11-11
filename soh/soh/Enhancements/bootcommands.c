@@ -17,7 +17,7 @@ void BootCommands_Init() {
     CVarClear(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatusFadeStarted"));
     CVarClear(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatusFadeCount"));
 
-#if defined(__SWITCH__) || defined(__WIIU__)
+#if defined(__SWITCH__) || defined(__WIIU__) || defined(__ANDROID__)
     CVarRegisterInteger(CVAR_IMGUI_CONTROLLER_NAV, 1); // always enable controller nav on switch/wii u
 #endif
 }
