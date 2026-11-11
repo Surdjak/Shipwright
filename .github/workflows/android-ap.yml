@@ -5,7 +5,9 @@ on:
     branches: [ android-ap ]
   workflow_dispatch:
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Renamed after two runs from the Nov 11 Actions outage got stuck in a pre-queue state
+  # that can be neither cancelled nor deleted; a new group keeps them from blocking builds.
+  group: android-apk-build-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: write   # lets a failed run publish its build log to the android-ap-ci-logs branch
