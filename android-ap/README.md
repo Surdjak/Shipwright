@@ -16,7 +16,8 @@ The workflow `.github/workflows/android-ap.yml` builds the APK on GitHub Actions
 1. On your fork, open the **Actions** tab and enable workflows if GitHub asks (they are off by default on forks).
 2. Wait for the `android-ap` run to finish (expect 30–60 minutes the first time).
 3. Download the `soh-archipelago-android` artifact. It contains a debug-signed, arm64-v8a release APK.
-4. If the run fails, a `native-build-logs` artifact holds the CMake/NDK logs.
+4. If the run fails, the build logs are pushed to the `android-ap-ci-logs` branch of the same repo.
+   Start with `errors-summary.txt`; `ninja-keep-going.log` lists every failing file in one go.
 
 ## Using it
 
@@ -65,13 +66,12 @@ cd Android && ./gradlew assembleRelease              # APK in Android/app/build/
 
 ## Verification status
 
-Done in the development sandbox, which had no Android NDK:
-- the desktop build configures, and every touched file compiles;
-- every Android-only code path passes a syntax check with `__ANDROID__` defined;
-- the Android dependency chain (SDL_net, ogg/vorbis/opus/opusfile, OpenSSL 3.0 ExternalProject)
-  builds, links and runs in a host test project.
-
-Not verified yet: the actual NDK build (the GitHub Actions run is the first one), and running on a device.
+- Development sandbox (no Android NDK): the desktop build configures, every touched file compiles,
+  Android-only code passes a syntax check with `__ANDROID__` defined, and the Android dependency chain
+  (SDL_net, ogg/vorbis/opus/opusfile, OpenSSL 3.0) builds and links in a host test project.
+- GitHub Actions, NDK 26: all 817 native compile steps succeed (after adding a missing `<sstream>`
+  include in `SohMenuRandomizer.cpp`).
+- Not verified yet: running on a device.
 
 ## Known limitations / things to watch
 
