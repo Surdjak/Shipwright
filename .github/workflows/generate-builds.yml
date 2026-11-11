@@ -1,6 +1,7 @@
 name: generate-builds
 on:
   push:
+    branches-ignore: [ android-ap ]  # the Android branch is built by android-ap.yml
   pull_request:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

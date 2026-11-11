@@ -7,6 +7,8 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: write   # lets a failed run publish its build log to the android-ap-ci-logs branch
 jobs:
   build-apk:
     runs-on: ubuntu-22.04
@@ -62,20 +64,35 @@ jobs:
       working-directory: Android
       run: |
         chmod +x gradlew
-        ./gradlew --no-daemon assembleRelease
+        set -o pipefail
+        ./gradlew --no-daemon assembleRelease 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+    - name: Collect all native compile errors
+      if: failure()
+      working-directory: Android
+      run: |
+        LOGDIR="$RUNNER_TEMP/ci-logs"; mkdir -p "$LOGDIR"
+        cp "$RUNNER_TEMP/gradle.log" "$LOGDIR/" 2>/dev/null || true
+        # Re-run ninja with -k 0 so one run reports every failing file, not just the first one
+        NINJA="$ANDROID_SDK_ROOT/cmake/3.31.5/bin/ninja"
+        for d in $(find app/.cxx -name build.ninja -printf '%h\n' 2>/dev/null); do
+          "$NINJA" -C "$d" -k 0 > "$LOGDIR/ninja-keep-going.log" 2>&1 || true
+          cp "$d/CMakeFiles/CMakeConfigureLog.yaml" "$LOGDIR/" 2>/dev/null || true
+        done
+        grep -n -E 'error:|error[ :]|FAILED:|undefined (reference|symbol)|CMake Error|What went wrong' \
+          "$LOGDIR"/*.log | head -400 > "$LOGDIR/errors-summary.txt" || true
+        # Annotations (visible in the run summary)
+        grep -m 10 -E 'error:|FAILED:|CMake Error|undefined' "$LOGDIR/errors-summary.txt" | cut -c1-500 | sed 's/^/::error::/' || true
+        # Publish logs to a side branch so they can be read without the Actions UI
+        cd "$LOGDIR"
+        for f in *.log; do [ -f "$f" ] && [ $(stat -c%s "$f") -gt 40000000 ] && tail -c 40000000 "$f" > "$f.tmp" && mv "$f.tmp" "$f"; done
+        git init -q -b android-ap-ci-logs .
+        git config user.name "android-ap CI"; git config user.email "actions@github.com"
+        echo "run ${GITHUB_RUN_ID} for ${GITHUB_SHA}" > RUN.txt
+        git add -A && git commit -q -m "CI logs: run ${GITHUB_RUN_ID} (${GITHUB_SHA::7})"
+        git push -q -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" android-ap-ci-logs || true
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: soh-archipelago-android
         path: Android/app/build/outputs/apk/release/*.apk
         retention-days: 30
-    - name: Upload native build logs on failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: native-build-logs
-        path: |
-          Android/app/.cxx/**/*.log
-          Android/app/.cxx/**/CMakeFiles/CMakeOutput.log
-          Android/app/.cxx/**/CMakeFiles/CMakeError.log
-        retention-days: 7
