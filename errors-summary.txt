@@ -1,0 +1,11 @@
+/home/runner/work/_temp/ci-logs/gradle.log:29496:C/C++:         bool error = false;
+/home/runner/work/_temp/ci-logs/gradle.log:32538:C/C++: ld.lld: error: unable to find library -lopusfile
+/home/runner/work/_temp/ci-logs/gradle.log:32539:C/C++: clang++: error: linker command failed with exit code 1 (use -v to see invocation)
+/home/runner/work/_temp/ci-logs/gradle.log:32546:* What went wrong:
+/home/runner/work/_temp/ci-logs/gradle.log:59572:          bool error = false;
+/home/runner/work/_temp/ci-logs/gradle.log:63418:  FAILED: /home/runner/work/Shipwright/Shipwright/Android/app/build/intermediates/cxx/RelWithDebInfo/215x4h3f/obj/arm64-v8a/libsoh.so 
+/home/runner/work/_temp/ci-logs/gradle.log:63420:  ld.lld: error: unable to find library -lopusfile
+/home/runner/work/_temp/ci-logs/gradle.log:63421:  clang++: error: linker command failed with exit code 1 (use -v to see invocation)
+/home/runner/work/_temp/ci-logs/ninja-keep-going.log:37:FAILED: /home/runner/work/Shipwright/Shipwright/Android/app/build/intermediates/cxx/RelWithDebInfo/215x4h3f/obj/arm64-v8a/libsoh.so 
+/home/runner/work/_temp/ci-logs/ninja-keep-going.log:39:ld.lld: error: unable to find library -lopusfile
+/home/runner/work/_temp/ci-logs/ninja-keep-going.log:40:clang++: error: linker command failed with exit code 1 (use -v to see invocation)
