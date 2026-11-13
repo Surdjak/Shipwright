@@ -7,6 +7,7 @@
 #include "Archipelago.h"
 #include "soh/util.h"
 #include <apuuid.hpp>
+#include <cstdlib>
 #include <apclient.hpp>
 
 #include <fstream>
@@ -74,8 +75,15 @@ bool ArchipelagoClient::StartClient() {
     password = CVarGetString(CVAR_REMOTE_ARCHIPELAGO("Password"), "");
     locationsScouted = false;
     hintsInitialized = false;
+    slotConnectPending = false;
 
     uuid = ap_get_uuid(Ship::Context::GetPathRelativeToAppDirectory("ap-client-uuid"));
+#ifdef __ANDROID__
+    // apclientpp caches the data package under $XDG_CACHE_HOME (or $HOME/.cache). Android apps have
+    // neither, so it fell back to a relative "cache" folder in the read-only working directory and the
+    // data package was downloaded again on every connect. Point it at the app folder instead.
+    setenv("XDG_CACHE_HOME", Ship::Context::GetPathRelativeToAppDirectory("cache").c_str(), 1);
+#endif
     const std::string cert = Ship::Context::LocateFileAcrossAppDirs("networking/cacert.pem");
     SPDLOG_DEBUG("Location of cert: " + cert);
     apClient = std::unique_ptr<APClient>(new APClient(uuid, AP_Client_consts::AP_GAME_NAME, uri, cert));
@@ -101,18 +109,11 @@ bool ArchipelagoClient::StartClient() {
     });
 
     apClient->set_room_info_handler([&]() {
-        std::list<std::string> tags;
-        if (CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("DeathLink"), 0)) {
-            tags.push_back("DeathLink");
-        }
-        if (CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("DamageLink"), 0)) {
-            tags.push_back("SharedDamage");
-        }
-        if (CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("TrapLink"), 0)) {
-            tags.push_back("TrapLink");
-        }
-        apClient->ConnectSlot(CVarGetString(CVAR_REMOTE_ARCHIPELAGO("SlotName"), ""), password, 0b0101, tags,
-                              { 0, 6, 7 });
+        // apclientpp calls this before it checks/requests the data package. Connecting right away means
+        // Connected, ReceivedItems and the checked-location list can arrive before any id -> name mapping
+        // exists, so received items get dropped and every checked location resolves to RC_UNKNOWN_CHECK.
+        // Poll() sends the actual Connect once the data package is valid (immediately if it was cached).
+        slotConnectPending = true;
     });
 
     apClient->set_slot_connected_handler([&](const nlohmann::json data) {
@@ -867,6 +868,22 @@ std::string ArchipelagoClient::SanitizeName(const std::string& name) {
     return sanitizedName;
 }
 
+// Sends the Connect packet; called from Poll() once the data package is usable (see room info handler).
+void ArchipelagoClient::ConnectSlotNow() {
+    std::list<std::string> tags;
+    if (CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("DeathLink"), 0)) {
+        tags.push_back("DeathLink");
+    }
+    if (CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("DamageLink"), 0)) {
+        tags.push_back("SharedDamage");
+    }
+    if (CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("TrapLink"), 0)) {
+        tags.push_back("TrapLink");
+    }
+    apClient->ConnectSlot(CVarGetString(CVAR_REMOTE_ARCHIPELAGO("SlotName"), ""), password, 0b0101, tags,
+                          { 0, 6, 7 });
+}
+
 void ArchipelagoClient::Poll() {
     if (apClient == nullptr) {
         return;
@@ -883,6 +900,12 @@ void ArchipelagoClient::Poll() {
         std::vector<AP_Hint::Hint> empty_hints = {};
         ArchipelagoHintWindow_UpdateHints(empty_hints);
         return;
+    }
+
+    if (slotConnectPending && apClient->get_state() == APClient::State::ROOM_INFO &&
+        apClient->is_data_package_valid()) {
+        slotConnectPending = false;
+        ConnectSlotNow();
     }
 
     // queue another item to be received

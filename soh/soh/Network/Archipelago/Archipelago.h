@@ -97,6 +97,7 @@ class ArchipelagoClient {
     void UpdateItemGroup(const std::string game, const nlohmann::json& item_group_json);
     void UpdateLocationGroup(const std::string game, const nlohmann::json& location_group_json);
     void Poll();
+    void ConnectSlotNow();
     void ResetQueue();
 
     void AfterSceneCommands(uint16_t sceneNum);
@@ -122,6 +123,7 @@ class ArchipelagoClient {
     std::unique_ptr<APClient> apClient;
     bool itemQueued;
     bool disconnecting;
+    bool slotConnectPending = false; // Connect is deferred until the data package is valid
     uint64_t lastDeathLink = 0;
     uint64_t lastDamageLink = 0;
     uint8_t trapLinkCount = 0;
