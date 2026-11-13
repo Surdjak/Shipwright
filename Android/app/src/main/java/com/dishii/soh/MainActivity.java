@@ -64,6 +64,19 @@ public class MainActivity extends SDLActivity{
         attachController();
     }
 
+    @Override
+    protected void onDestroy() {
+        // SDLActivity.onDestroy() asks the game to quit and waits for SDL_main() to return.
+        super.onDestroy();
+        // The process itself would stay alive, and on the next launch SDL would run SDL_main() again
+        // in it. SoH/libultraship keep a lot of native static state and can only start once per
+        // process, so that second start hung at the boot screen (e.g. after Android reclaimed the
+        // activity while the game sat in the background). End the process so every launch is a
+        // clean cold start.
+        Log.i("MainActivity", "Activity destroyed; ending process so the next launch starts fresh");
+        android.os.Process.killProcess(android.os.Process.myPid());
+    }
+
     // Separate from regular SoH Android ("SOH") so both apps can be installed side by side.
     // Must match the path hardcoded in libultraship's Context.cpp (android-ap/patches/libultraship.patch).
     public static final String DATA_FOLDER = "SOH-AP";
