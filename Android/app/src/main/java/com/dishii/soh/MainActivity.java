@@ -120,29 +120,52 @@ public class MainActivity extends SDLActivity{
         launcherLog("Game continuing after setup");
     }
 
-    private void doVersionCheck(){
-        int currentVersion = BuildConfig.VERSION_CODE;
-        int storedVersion = preferences.getInt("appVersion", 1);
+    // Marker in SOH-AP recording which build's bundled files (soh.o2r, assets, CA bundle) are installed.
+    // It used to be an app preference, which an uninstall/reinstall reset, so the bundled files *and the
+    // player's extracted oot.o2r* were deleted after every reinstall.
+    private static final String BUNDLED_FILES_MARKER = ".bundled-files-id";
 
-        if (currentVersion > storedVersion) {
+    private File bundledFilesMarker() {
+        return new File(new File(Environment.getExternalStorageDirectory(), DATA_FOLDER), BUNDLED_FILES_MARKER);
+    }
+
+    private void doVersionCheck() {
+        String current = BuildConfig.BUNDLED_FILES_ID;
+        String installed = null;
+        File marker = bundledFilesMarker();
+        if (marker.isFile()) {
+            try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(marker))) {
+                installed = r.readLine();
+            } catch (IOException e) {
+                Log.w("versionCheck", "Could not read " + marker, e);
+            }
+        }
+        if (!current.equals(installed)) {
+            launcherLog("Bundled files are from build " + installed + ", app is " + current + ": refreshing them");
             deleteOutdatedAssets();
-            preferences.edit().putInt("appVersion", currentVersion).apply();
+        }
+    }
+
+    private void writeBundledFilesMarker() {
+        try (java.io.FileWriter w = new java.io.FileWriter(bundledFilesMarker(), false)) {
+            w.write(BuildConfig.BUNDLED_FILES_ID + "\n");
+        } catch (IOException e) {
+            Log.w("versionCheck", "Could not write bundled files marker", e);
         }
     }
 
     private void deleteOutdatedAssets() {
         File targetRootFolder = new File(Environment.getExternalStorageDirectory(), DATA_FOLDER);
 
+        // Only files that ship inside the APK and get copied back by setup. The player's extracted
+        // oot.o2r / oot-mq.o2r are left alone: the game itself checks their version and offers to
+        // re-extract when they are outdated.
         File sohFile = new File(targetRootFolder, "soh.o2r");
-        File ootFile = new File(targetRootFolder, "oot.o2r");
-        File ootMqFile = new File(targetRootFolder, "oot-mq.o2r");
         File assetsFolder = new File(targetRootFolder, "assets");
         File networkingFolder = new File(targetRootFolder, "networking");
 
         deleteRecursiveIfExists(networkingFolder);
         deleteIfExists(sohFile);
-        deleteIfExists(ootFile);
-        deleteIfExists(ootMqFile);
         deleteRecursiveIfExists(assetsFolder);
     }
 
@@ -355,6 +378,7 @@ public class MainActivity extends SDLActivity{
             runOnUiThread(() -> Toast.makeText(this, "Error copying certificate bundle", Toast.LENGTH_LONG).show());
         }
 
+        writeBundledFilesMarker();
         launcherLog("Setup finished");
         setupLatch.countDown();
     }

@@ -22,14 +22,29 @@ android {
     buildFeatures {
         buildConfig = true
     }
+    signingConfigs {
+        // A fixed key checked into the repo, so every CI build can be installed as an update over the
+        // previous one. (signingConfigs.debug uses a fresh random key on each CI runner, which forced an
+        // uninstall before every update.) This key is public: it is for test builds, not store releases.
+        apCi {
+            storeFile file('ap-ci.keystore')
+            storePassword 'android'
+            keyAlias 'soh-ap'
+            keyPassword 'android'
+        }
+    }
     defaultConfig {
         if (buildAsApplication) {
             applicationId "com.dishii.soh.ap"
         }
         minSdkVersion 24
         targetSdkVersion 33
-        versionCode 100
+        // CI builds count up with the workflow run number so each APK is a proper update.
+        versionCode 100 + (System.getenv("GITHUB_RUN_NUMBER") ?: "0").toInteger()
         versionName "9.2.3-ap"
+        // Identifies the bundled files (soh.o2r, assets, CA bundle) of this build; the launcher refreshes
+        // the copies in SOH-AP whenever it changes.
+        buildConfigField "String", "BUNDLED_FILES_ID", "\"${System.getenv("GITHUB_SHA") ?: "local-dev"}\""
     }
     buildTypes {
         debug {
@@ -45,7 +60,7 @@ android {
             minifyEnabled false
             debuggable false
             jniDebuggable false
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.apCi
             externalNativeBuild {
                 cmake {
                     arguments(*nativeCmakeArgs)
