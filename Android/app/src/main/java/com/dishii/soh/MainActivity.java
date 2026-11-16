@@ -49,6 +49,10 @@ public class MainActivity extends SDLActivity{
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         preferences = getSharedPreferences("com.dishii.soh.prefs",Context.MODE_PRIVATE);
+        if (hasStoragePermission()) {
+            launcherLog("onCreate (restored=" + (savedInstanceState != null) + ", setupLatch="
+                    + setupLatch.getCount() + ")");
+        }
 
         // Check if storage permissions are granted
         if (hasStoragePermission()) {
@@ -73,7 +77,7 @@ public class MainActivity extends SDLActivity{
         // process, so that second start hung at the boot screen (e.g. after Android reclaimed the
         // activity while the game sat in the background). End the process so every launch is a
         // clean cold start.
-        Log.i("MainActivity", "Activity destroyed; ending process so the next launch starts fresh");
+        launcherLog("onDestroy (finishing=" + isFinishing() + "); ending process");
         android.os.Process.killProcess(android.os.Process.myPid());
     }
 
@@ -81,12 +85,39 @@ public class MainActivity extends SDLActivity{
     // Must match the path hardcoded in libultraship's Context.cpp (android-ap/patches/libultraship.patch).
     public static final String DATA_FOLDER = "SOH-AP";
 
+    // Small diagnostic log of the launcher's lifecycle and setup checks, kept next to the game's own logs
+    // (SOH-AP/logs/launcher.log) so it can be read on the phone without adb.
+    static void launcherLog(String message) {
+        Log.i("launcher", message);
+        try {
+            File logDir = new File(new File(Environment.getExternalStorageDirectory(), DATA_FOLDER), "logs");
+            if (!logDir.exists() && !logDir.mkdirs()) {
+                return;
+            }
+            File logFile = new File(logDir, "launcher.log");
+            if (logFile.length() > 256 * 1024) {
+                File old = new File(logDir, "launcher.1.log");
+                old.delete();
+                logFile.renameTo(old);
+            }
+            String stamp = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+                    .format(new java.util.Date());
+            try (java.io.FileWriter w = new java.io.FileWriter(logFile, true)) {
+                w.write(stamp + " [pid " + android.os.Process.myPid() + "] " + message + "\n");
+            }
+        } catch (Exception e) {
+            Log.w("launcher", "Could not write launcher.log", e);
+        }
+    }
+
     public static void waitForSetupFromNative() {
+        launcherLog("Game waiting for setup (setupLatch=" + setupLatch.getCount() + ")");
         try {
             setupLatch.await();  // Block until setup is complete
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        launcherLog("Game continuing after setup");
     }
 
     private void doVersionCheck(){
@@ -202,9 +233,19 @@ public class MainActivity extends SDLActivity{
         boolean isMissingCaBundle = !new File(targetRootFolder, "networking/cacert.pem").exists();
 
         if (!targetRootFolder.exists() || isMissingAssets || isMissingSohOtr || isMissingCaBundle) {
+            StringBuilder missing = new StringBuilder();
+            if (!targetRootFolder.exists()) missing.append("\n• ").append(DATA_FOLDER).append(" folder");
+            if (isMissingAssets) {
+                missing.append("\n• assets folder (")
+                        .append(!assetsFolder.exists() ? "absent" : assetsFolder.listFiles() == null ? "unreadable" : "empty")
+                        .append(")");
+            }
+            if (isMissingSohOtr) missing.append("\n• soh.o2r");
+            if (isMissingCaBundle) missing.append("\n• networking/cacert.pem");
+            launcherLog("Setup required, missing:" + missing.toString().replace("\n•", ";"));
             new AlertDialog.Builder(this)
                     .setTitle("Setup Required")
-                    .setMessage("Some required files are missing. The app will create them (~1 minute). Press OK to begin.")
+                    .setMessage("Some required files are missing. The app will create them (~1 minute). Press OK to begin.\n\nMissing:" + missing)
                     .setCancelable(false)
                     .setPositiveButton("OK", (dialog, which) -> {
                         Executors.newSingleThreadExecutor().execute(() -> {
@@ -215,6 +256,7 @@ public class MainActivity extends SDLActivity{
                     .show();
         } else {
             // No setup needed, still need to count down
+            launcherLog("Setup check passed");
             setupLatch.countDown();
         }
     }
@@ -313,6 +355,7 @@ public class MainActivity extends SDLActivity{
             runOnUiThread(() -> Toast.makeText(this, "Error copying certificate bundle", Toast.LENGTH_LONG).show());
         }
 
+        launcherLog("Setup finished");
         setupLatch.countDown();
     }
 
